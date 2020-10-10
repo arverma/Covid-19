@@ -24,7 +24,7 @@ def main():
         else:
             print("Format incorrect: {}".format(content_type))
     except Exception as e:
-        raise Exception("Error".format(e))
+        raise Exception("Error: {}".format(e))
 
 
 if __name__ == "__main__":
