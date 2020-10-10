@@ -1,56 +1,31 @@
 import requests
-from Analysis import covid19Data
-import json
+from Analysis import Covid19Data
+
 
 def geturl():
     try:
         url = "https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json"
-        get_url = requests.get(url)
-        get_content = get_url.content
-        jsonString  = json.loads(get_content)
-        tempURL =  jsonString["basePath"] + jsonString["regions"]["en-us"]["csvPath"]
-
-        finalURL  = "https://covid19-static.cdn-apple.com" + tempURL
-        return finalURL
-
+        url_data = requests.get(url).json()
+        return "https://covid19-static.cdn-apple.com{}{}".format(
+            url_data["basePath"],
+            url_data["regions"]["en-us"]["csvPath"]
+        )
     except Exception as e:
-        print(e.__class__)
-        print("Couldn't found URL")
+        raise Exception("Error".format(e))
+
 
 def main():
-
     try:
-        # url = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2017HotfixDev9/v3/en-us/applemobilitytrends-2020-09-19.csv"
-        url = geturl()
-        get_url = requests.get(url)
+        data = requests.get(geturl())
+        content_type = data.headers.get('content-type')
 
-        # get the type of content.
-        type = get_url.headers.get('content-type')
-
-        if(type == "text/csv"):
-
-            # create a object
-            obj = covid19Data(get_url)
-            obj.run()
-
+        if content_type == "text/csv":
+            Covid19Data(data).run()
         else:
-            print("Found other format")
-
+            print("Format incorrect: {}".format(content_type))
     except Exception as e:
-        print(e.__class__)
-        print("Data not found(May be timeout)")
+        raise Exception("Error".format(e))
+
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-

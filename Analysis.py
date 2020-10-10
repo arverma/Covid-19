@@ -1,123 +1,59 @@
 import pandas as pd
+import requests
 from datetime import date, timedelta, datetime
 
-#  Date before 2 days
-today  = date.today()-timedelta(days=2)
-nameOfDownloadFile = f"Downloaded-{today}.csv"
-nameOfSaveFile = f"Saved-{today}.csv"
+FileNameToDownload = "Downloaded-{date_today}.csv"
+FileNameToSave = "Saved-{date_today}.csv"
+RequiredColumnName = {'region', 'geo_type', 'transportation_type', 'alternative_name', 'sub-region', 'country'}
 
-class covid19Data:
 
+class Covid19Data:
     def __init__(self, url):
         self.url = url
+        date_today = date.today() - timedelta(days=2)
+        self.file_name_to_save = FileNameToSave.format(date_today)
+        self.file_name_to_downlaod = FileNameToDownload.format(date_today)
 
+    @staticmethod
     def validate(self, date_text):
         try:
-            datetime.strptime(date_text, '%Y-%m-%d')
-            return 1
+            datetime.datetime.strptime(date_text, '%Y-%m-%d')
         except Exception as e:
-            return 0
+            raise ValueError("Incorrect data format, should be YYYY-MM-DD: {}".format(e))
 
-    def getDataFrame(self):
-
+    def get_data_frame(self):
         try:
-            getUrl = self.url
+            data = requests.get(self.url)
+            data_content = data.content
 
-            # to access the content of the CSV file
-            getContentOfFile = getUrl.content
-
-            # writing the content into CSV file    w-writing ,  b- binary mode,  a - append
-            opnCSVFile = open(nameOfDownloadFile, 'wb')
-            opnCSVFile.write(getContentOfFile)
-
-            opnCSVFile.close()
+            csv_file = open(self.file_name_to_downlaod, 'wb')
+            csv_file.write(data_content)
+            csv_file.close()
 
             # Pandas guessing dtypes for each column is very memory demanding so here we use low_memory = False
-            dataFrame = pd.read_csv(nameOfDownloadFile, low_memory=False)
-
-            lengthOfColumn = len(dataFrame.columns)
-
-            if(lengthOfColumn >= 7):
-
-                startOfDateColumn = dataFrame.columns[6]
-                dataType = dataFrame.dtypes[startOfDateColumn]
-
-                # check the data type of next column which is date and also check the format
-                if dataType != "float64" or self.validate(startOfDateColumn) != 1:
-                    return [dataFrame,False]
-
-                columnNames = list(dataFrame.columns[0:6])
-                requiredColumnName = ['region','geo_type', 'transportation_type', 'alternative_name', 'sub-region', 'country']
-
-                # we can also check through columnNames == requiredColumnName but if we swap two column then it will fail
-                # here we check the column name one by one
-                for x in requiredColumnName:
-                    if x not in columnNames:
-                        return [dataFrame,False]
-
-                return [dataFrame, True]
-
-            else:
-                return [dataFrame, False]
-
+            dataFrame = pd.read_csv(self.file_name_to_downlaod, low_memory=False)
+            self.validate(self, dataFrame.columns[6])
+            if set(dataFrame.columns[0:6]) == RequiredColumnName:
+                return dataFrame
         except Exception as e:
-            print(e.__class__)
-            print("can't access dataFrame")
-            return [0,False]
+            raise Exception("Error generating DF: {}".format(e))
 
-
-    def reArrangeDataFrame(self,dataFrame):
-
+    @staticmethod
+    def rearrange_data_frame(self, dataFrame):
         try:
-            # convert some columns into the rows
-            if(len(dataFrame.columns)>=7):
-
-                columnNames = list(dataFrame.columns[0:6])
-                newDataFrame = dataFrame.melt(id_vars=columnNames, var_name="Date", value_name="Value")
-
-                return [newDataFrame, True]
-            else:
-
-                return [0, False]
-
+            return dataFrame.melt(id_vars=list(dataFrame.columns[0:6]), var_name="Date", value_name="Value")
         except Exception as e:
-            print(e.__class__)
-            print("can not be convert columns into the rows")
-            return [0,False]
+            raise Exception("Can not convert columns into rows: {}".format(e))
 
-
-    def saveFile(self, dataFrame):
-
+    def save_file(self, df):
         try:
-            dataFrame.to_csv(nameOfSaveFile)
-            return 1
-
+            df.to_csv(self.file_name_to_save)
         except Exception as e:
-            print(e.__class__)
-            print("can't Save")
-            return 0
-
+            raise Exception("Error saving DF to file: {}".format(e))
 
     def run(self):
-        dataFrame = self.getDataFrame()
-
-        if (dataFrame[1] == False):
-            print("Failed")
-            return False
-
-        else:
-            newDF = self.reArrangeDataFrame(dataFrame[0])[0]
-
-            finalResult = self.saveFile(newDF)
-
-            if(finalResult == 1):
-                print("Successfully Saved")
-                return True
-            else:
-                return False
-
-
-
-
-
-
+        dataFrame = self.get_data_frame()
+        if dataFrame:
+            newDF = self.rearrange_data_frame(self, dataFrame)
+            self.save_file(newDF)
+            print("Successfully Saved with file name: {}".format(self.file_name_to_save))
